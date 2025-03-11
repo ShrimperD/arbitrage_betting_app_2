@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbitrage Opportunities</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            display: flex;
+            width: 95%;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .left {
+            width: 18%;
+            position: fixed;
+            top: 0;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            height: 100vh;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .right {
+            width: 75%;
+            margin-left: 22%;
+        }
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1000;
+            box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .positive {
+            color: green;
+            font-weight: bold;
+        }
+        .calculator input {
+            width: 95%;
+            padding: 5px;
+            margin: 5px 0;
+            text-align: center;
+            font-size: 14px;
+        }
+        .calculator button {
+            width: 100%;
+            padding: 8px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+    <script>
+        function calculateArbitrage() {
+            let odds1 = parseFloat(document.getElementById("odds1").value);
+            let odds2 = parseFloat(document.getElementById("odds2").value);
+            let stake = parseFloat(document.getElementById("stake").value);
+
+            if (isNaN(odds1) || isNaN(odds2) || isNaN(stake)) {
+                alert("Please enter valid numbers for odds and stake.");
+                return;
+            }
+
+            let implied_prob1 = 100 / (odds1 > 0 ? (odds1 + 100) / 100 : (-100 / odds1) + 1);
+            let implied_prob2 = 100 / (odds2 > 0 ? (odds2 + 100) / 100 : (-100 / odds2) + 1);
+            let total_implied_prob = implied_prob1 + implied_prob2;
+
+            if (total_implied_prob >= 100) {
+                alert("No arbitrage opportunity! The total implied probability is " + Math.round(total_implied_prob) + "%.");
+                return;
+            }
+
+            let bet1 = Math.round(stake * (implied_prob2 / total_implied_prob));
+            let bet2 = Math.round(stake * (implied_prob1 / total_implied_prob));
+
+            document.getElementById("bet1").innerText = "$" + bet1;
+            document.getElementById("bet2").innerText = "$" + bet2;
+            document.getElementById("profit").innerText = "$" + Math.round(stake * (100 / total_implied_prob - 1));
+        }
+    </script>
+</head>
+<body>
+
+    <h2>🔥 Arbitrage Opportunities 🔥</h2>
+
+    <!-- Sorting Buttons -->
+    <div>
+        <a href="/?sort=time"><button>Sort by Time</button></a>
+        <a href="/?sort=arb_percent"><button>Sort by Arbitrage %</button></a>
+        <a href="/?sort=profit"><button>Sort by Total Profit</button></a>
+    </div>
+
+    <div class="container">
+        <!-- Arbitrage Calculator (Fixed on Left) -->
+        <div class="left">
+            <div class="calculator">
+                <h3>📊 Arbitrage Calculator</h3>
+                <label for="odds1">Home Odds:</label>
+                <input type="number" id="odds1" placeholder="Enter home odds">
+
+                <label for="odds2">Away Odds:</label>
+                <input type="number" id="odds2" placeholder="Enter away odds">
+
+                <label for="stake">Total Stake ($):</label>
+                <input type="number" id="stake" placeholder="Enter total stake">
+
+                <button onclick="calculateArbitrage()">Calculate Bets</button>
+
+                <h4>Results:</h4>
+                <p>Bet 1: <span id="bet1">-</span></p>
+                <p>Bet 2: <span id="bet2">-</span></p>
+                <p>Expected Profit: <span id="profit">-</span></p>
+            </div>
+        </div>
+
+        <!-- Arbitrage Table -->
+        <div class="right">
+            <table>
+                <thead class="sticky-header">
+                    <tr>
+                        <th>🏆 Match</th>
+                        <th>🎯 Sport</th>
+                        <th>📅 Date</th>
+                        <th>💰 Home Odds</th>
+                        <th>💵 Home Site</th>
+                        <th>💰 Away Odds</th>
+                        <th>💵 Away Site</th>
+                        <th>📊 Arb %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for opp in opportunities %}
+                    <tr>
+                        <td>{{ opp.match }}</td>
+                        <td>{{ opp.sport }}</td>
+                        <td>{{ opp.date }}</td>
+                        <td>{{ opp.home_odds }}</td>
+                        <td>{{ opp.home_site }}</td>
+                        <td>{{ opp.away_odds }}</td>
+                        <td>{{ opp.away_site }}</td>
+                        <td class="positive">{{ opp.arb_percent }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</body>
+</html>
