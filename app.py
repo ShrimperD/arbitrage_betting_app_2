@@ -32,6 +32,16 @@ def convert_to_central_time(utc_time):
         print(f"⚠️ Time conversion error: {e}")
         return utc_time
 
+def get_sportsbook_url(site_name):
+    """Get the URL for a sportsbook based on its name"""
+    sportsbook_urls = {
+        "DraftKings": "https://www.draftkings.com/sportsbook",
+        "FanDuel": "https://www.fanduel.com/sportsbook",
+        "BetMGM": "https://sports.az.betmgm.com/en/sports",
+        # Add more sportsbooks as needed
+    }
+    return sportsbook_urls.get(site_name, "#")
+
 # ✅ API Calls with Retries
 @cache.cached(timeout=CACHE_TIMEOUT)
 def get_odds():
@@ -71,14 +81,14 @@ def find_arbitrage_opportunities(sort_by="arb_percent"):
                                 best_odds['home'] = {
                                     'price': outcome["price"],
                                     'site': bookmaker["title"],
-                                    'url': bookmaker.get("link", "#")  # Add link to sportsbook
+                                    'url': get_sportsbook_url(bookmaker["title"])  # Add URL
                                 }
                         elif outcome["name"] == event["away_team"]:
                             if not best_odds['away'] or outcome["price"] > best_odds['away']['price']:
                                 best_odds['away'] = {
                                     'price': outcome["price"],
                                     'site': bookmaker["title"],
-                                    'url': bookmaker.get("link", "#")  # Add link to sportsbook
+                                    'url': get_sportsbook_url(bookmaker["title"])  # Add URL
                                 }
 
             # Calculate arbitrage
