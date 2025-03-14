@@ -15,7 +15,7 @@ BOOKMAKER_URLS = {
     "Bovada": "https://www.bovada.lv",
     "BetRivers": "https://www.betrivers.com",
     "Caesars": "https://www.caesars.com/sportsbook",
-    "BetMGM": "https://sports.kansas.betmgm.com",  # Updated to Kansas-specific URL
+    "BetMGM": "https://sports.ks.betmgm.com",  # Updated to Kansas-specific URL
     "LowVig.ag": "https://www.lowvig.ag",
     "MyBookie.ag": "https://www.mybookie.ag",
     "BetUS": "https://www.betus.com.pa",
