@@ -147,7 +147,7 @@
                 Arbitrage Percentage: {{ opportunity.arbitrage_percentage }}%
             </div>
             <div class="potential-profit">
-                Potential Profit (for $100 stake): ${{ opportunity.potential_profit }}
+                Potential Profit (for $100 stake): ${{ (opportunity.arbitrage_percentage / 100 * 100)|round(2) }}
             </div>
             <div class="stake-input">
                 <label for="stake-{{ loop.index }}">Enter Total Stake ($):</label>
