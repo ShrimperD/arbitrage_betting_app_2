@@ -72,6 +72,11 @@
             color: #ff5722;
             margin-top: 10px;
         }
+        .potential-profit {
+            font-weight: bold;
+            color: #28a745;
+            margin-top: 10px;
+        }
         .filter {
             margin-bottom: 20px;
             width: 100%;
@@ -144,6 +149,9 @@
                 </div>
                 <div class="arbitrage-percentage">
                     Arbitrage Percentage: {{ opportunity.arbitrage_percentage }}%
+                </div>
+                <div class="potential-profit">
+                    Potential Profit (for $100 stake): ${{ opportunity.potential_profit }}
                 </div>
             </li>
             {% else %}
