@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 import requests
 from datetime import datetime
 import pytz
@@ -15,7 +15,7 @@ BOOKMAKER_URLS = {
     "Bovada": "https://www.bovada.lv",
     "BetRivers": "https://www.betrivers.com",
     "Caesars": "https://www.caesars.com/sportsbook",
-    "BetMGM": "https://sports.ks.betmgm.com",  # Updated to Kansas-specific URL
+    "BetMGM": "https://sports.kansas.betmgm.com",  # Updated to Kansas-specific URL
     "LowVig.ag": "https://www.lowvig.ag",
     "MyBookie.ag": "https://www.mybookie.ag",
     "BetUS": "https://www.betus.com.pa",
@@ -68,13 +68,13 @@ def find_arbitrage_opportunities():
                                 home_odds.append({
                                     "site": bookmaker["title"],
                                     "odds": outcome["price"],
-                                    "url": BOOKMAKER_URLS.get(bookmaker["title"], "#")
+                                    "url": f"{BOOKMAKER_URLS.get(bookmaker['title'], '#')}/event/{event['id']}"  # Direct link to event
                                 })
                             elif outcome["name"] == event["away_team"]:
                                 away_odds.append({
                                     "site": bookmaker["title"],
                                     "odds": outcome["price"],
-                                    "url": BOOKMAKER_URLS.get(bookmaker["title"], "#")
+                                    "url": f"{BOOKMAKER_URLS.get(bookmaker['title'], '#')}/event/{event['id']}"  # Direct link to event
                                 })
 
             # Calculate implied probabilities and check for arbitrage
@@ -108,7 +108,9 @@ def find_arbitrage_opportunities():
 def index():
     try:
         data = find_arbitrage_opportunities()
-        return render_template("index.html", opportunities=data)
+        filter_percentage = request.args.get("filter", default=0, type=float)
+        filtered_data = [opp for opp in data if opp["arbitrage_percentage"] >= filter_percentage]
+        return render_template("index.html", opportunities=filtered_data, filter_percentage=filter_percentage)
     except Exception as e:
         print(f"❌ Error Rendering Template: {e}")
         return "An error occurred while processing your request.", 500
