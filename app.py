@@ -1,145 +1,118 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, render_template
 import requests
 from datetime import datetime
 import pytz
 import os
-from flask_caching import Cache
 
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache'})
 
-# ✅ Configuration
-API_KEY = "f1e5ca6d70e837026e976e7f5a94f058"  # Your API key
-API_URL = "https://api.the-odds-api.com/v4/sports/upcoming/odds"
-CACHE_TIMEOUT = 30  # Seconds
+# ✅ API Key (Use Render Environment Variables)
+API_KEY = os.getenv("API_KEY")  # Ensure this matches the environment variable name in Render
+API_URL = f"https://api.the-odds-api.com/v4/sports/upcoming/odds?apiKey={API_KEY}&regions=us&oddsFormat=american"
 
-# ✅ Helpers
-def convert_american_to_probability(odds):
-    """Convert American odds to implied probability"""
-    if odds > 0:
-        return 100 / (odds + 100)
-    else:
-        return abs(odds) / (abs(odds) + 100)
+# ✅ Mapping of Bookmaker Names to URLs (Updated and Verified)
+BOOKMAKER_URLS = {
+    "Bovada": "https://www.bovada.lv",
+    "BetRivers": "https://www.betrivers.com",
+    "Caesars": "https://www.caesars.com/sportsbook",
+    "BetMGM": "https://sports.kansas.betmgm.com",  # Updated to Kansas-specific URL
+    "LowVig.ag": "https://www.lowvig.ag",
+    "MyBookie.ag": "https://www.mybookie.ag",
+    "BetUS": "https://www.betus.com.pa",
+    "DraftKings": "https://www.draftkings.com",
+    "Fanatics": "https://www.fanatics.com",
+    "FanDuel": "https://www.fanduel.com"
+}
 
+# ✅ Convert UTC Time to Central Time (CT)
 def convert_to_central_time(utc_time):
-    """Convert UTC time to Central Time (CT)"""
     try:
-        utc_dt = datetime.fromisoformat(utc_time.replace('Z', '+00:00'))
+        utc_zone = pytz.utc
         central_zone = pytz.timezone("America/Chicago")
-        ct_dt = utc_dt.astimezone(central_zone)
+        utc_dt = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%SZ")
+        ct_dt = utc_dt.replace(tzinfo=utc_zone).astimezone(central_zone)
         return ct_dt.strftime("%Y-%m-%d %I:%M %p CT")
     except Exception as e:
-        print(f"⚠️ Time conversion error: {e}")
-        return utc_time
+        print(f"❌ Error Converting Time: {e}")
+        return utc_time  # Return original time if conversion fails
 
-def get_sportsbook_url(site_name):
-    """Get the URL for a sportsbook based on its name"""
-    sportsbook_urls = {
-        "DraftKings": "https://www.draftkings.com/sportsbook",
-        "FanDuel": "https://www.fanduel.com/sportsbook",
-        "BetMGM": "https://sports.az.betmgm.com/en/sports",
-        # Add more sportsbooks as needed
-    }
-    return sportsbook_urls.get(site_name, "#")
-
-# ✅ API Calls with Retries
-@cache.cached(timeout=CACHE_TIMEOUT)
+# ✅ Function to Fetch Odds from API
 def get_odds():
-    """Fetch odds from the API"""
     try:
-        response = requests.get(
-            API_URL,
-            params={
-                "apiKey": API_KEY,
-                "regions": "us",
-                "oddsFormat": "american",
-                "markets": "h2h,spreads,totals"
-            }
-        )
-        response.raise_for_status()
+        response = requests.get(API_URL, timeout=10)  # Add timeout to prevent hanging
+        response.raise_for_status()  # Raise an exception for HTTP errors
         return response.json()
-    except Exception as e:
-        print(f"❌ API Error: {str(e)}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ API Request Failed: {e}")
         return []
 
-# ✅ Core Logic
-def find_arbitrage_opportunities(sort_by="arb_percent"):
-    """Find and calculate arbitrage opportunities"""
+# ✅ Function to Find Arbitrage Opportunities
+def find_arbitrage_opportunities():
+    odds_data = get_odds()
     opportunities = []
-    
-    for event in get_odds():
+
+    for event in odds_data:
         try:
-            # Get best odds for both teams
-            best_odds = {'home': None, 'away': None}
-            
+            match = f"{event['home_team']} vs {event['away_team']}"
+            sport = event['sport_title']
+            event_time = convert_to_central_time(event["commence_time"])
+
+            home_odds = []
+            away_odds = []
+
             for bookmaker in event.get("bookmakers", []):
                 for market in bookmaker.get("markets", []):
-                    for outcome in market.get("outcomes", []):
-                        # Track best odds for each team
-                        if outcome["name"] == event["home_team"]:
-                            if not best_odds['home'] or outcome["price"] > best_odds['home']['price']:
-                                best_odds['home'] = {
-                                    'price': outcome["price"],
-                                    'site': bookmaker["title"],
-                                    'url': get_sportsbook_url(bookmaker["title"])  # Add URL
-                                }
-                        elif outcome["name"] == event["away_team"]:
-                            if not best_odds['away'] or outcome["price"] > best_odds['away']['price']:
-                                best_odds['away'] = {
-                                    'price': outcome["price"],
-                                    'site': bookmaker["title"],
-                                    'url': get_sportsbook_url(bookmaker["title"])  # Add URL
-                                }
+                    if market["key"] == "h2h":  # Only consider head-to-head markets
+                        for outcome in market.get("outcomes", []):
+                            if outcome["name"] == event["home_team"]:
+                                home_odds.append({
+                                    "site": bookmaker["title"],
+                                    "odds": outcome["price"],
+                                    "url": BOOKMAKER_URLS.get(bookmaker["title"], "#")
+                                })
+                            elif outcome["name"] == event["away_team"]:
+                                away_odds.append({
+                                    "site": bookmaker["title"],
+                                    "odds": outcome["price"],
+                                    "url": BOOKMAKER_URLS.get(bookmaker["title"], "#")
+                                })
 
-            # Calculate arbitrage
-            if best_odds['home'] and best_odds['away']:
-                home_prob = convert_american_to_probability(best_odds['home']['price'])
-                away_prob = convert_american_to_probability(best_odds['away']['price'])
-                total_prob = home_prob + away_prob
-                
-                if total_prob < 100:
-                    arb_percent = (100 - total_prob)
-                    profit = (100 / total_prob - 1) * 100  # Profit percentage
-                    
-                    opportunities.append({
-                        "match": f"{event['home_team']} vs {event['away_team']}",
-                        "sport": event['sport_title'],
-                        "date": convert_to_central_time(event["commence_time"]),
-                        "home_site": best_odds['home']['site'],
-                        "home_odds": best_odds['home']['price'],
-                        "home_url": best_odds['home']['url'],  # Add URL
-                        "away_site": best_odds['away']['site'],
-                        "away_odds": best_odds['away']['price'],
-                        "away_url": best_odds['away']['url'],  # Add URL
-                        "arb_percent": round(arb_percent, 2),
-                        "profit": round(profit, 2)
-                    })
-                    
-        except Exception as e:
-            print(f"⚠️ Error processing event: {str(e)}")
+            # Calculate implied probabilities and check for arbitrage
+            for home in home_odds:
+                for away in away_odds:
+                    implied_prob_home = 1 / home["odds"] if home["odds"] > 0 else 0
+                    implied_prob_away = 1 / away["odds"] if away["odds"] > 0 else 0
+                    total_implied_prob = implied_prob_home + implied_prob_away
+
+                    if total_implied_prob < 1:
+                        opportunities.append({
+                            "match": match,
+                            "sport": sport,
+                            "event_time": event_time,
+                            "home_site": home["site"],
+                            "home_odds": home["odds"],
+                            "home_url": home["url"],
+                            "away_site": away["site"],
+                            "away_odds": away["odds"],
+                            "away_url": away["url"],
+                            "arbitrage_percentage": round((1 - total_implied_prob) * 100, 2)
+                        })
+        except KeyError as e:
+            print(f"❌ Missing Key in Event Data: {e}")
             continue
 
-    # Sorting
-    sort_options = {
-        "time": lambda x: datetime.strptime(x["date"], "%Y-%m-%d %I:%M %p CT"),
-        "arb_percent": lambda x: -x["arb_percent"],
-        "profit": lambda x: -x["profit"]
-    }
-    
-    return sorted(opportunities, key=sort_options.get(sort_by, "arb_percent"))
+    return opportunities
 
-# ✅ Routes
-@app.route("/arbitrage")
-def arbitrage():
-    sort_by = request.args.get("sort", "arb_percent")
-    return jsonify(find_arbitrage_opportunities(sort_by))
-
+# ✅ Web App Route (Displays Data)
 @app.route("/")
 def index():
-    sort_by = request.args.get("sort", "arb_percent")
-    return render_template("index.html", 
-                         opportunities=find_arbitrage_opportunities(sort_by),
-                         sort_by=sort_by)
+    try:
+        data = find_arbitrage_opportunities()
+        return render_template("index.html", opportunities=data)
+    except Exception as e:
+        print(f"❌ Error Rendering Template: {e}")
+        return "An error occurred while processing your request.", 500
 
+# ✅ Flask App Runner for Render Deployment
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)  # Disable debug in production
