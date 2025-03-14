@@ -10,29 +10,36 @@
             margin: 20px;
             padding: 0;
             background-color: #f9f9f9;
-            display: flex;
-            flex-wrap: wrap;
-        }
-        .calculator {
-            flex: 1;
-            max-width: 300px;
-            margin-right: 20px;
-        }
-        .opportunities {
-            flex: 2;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
         }
         h1 {
             color: #333;
             text-align: center;
-            width: 100%;
+        }
+        .filter-box {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .filter-box input {
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .filter-box button {
+            padding: 8px 16px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .filter-box button:hover {
+            background-color: #0056b3;
         }
         ul {
             list-style-type: none;
             padding: 0;
-            width: 100%;
         }
         li {
             padding: 15px;
@@ -41,7 +48,6 @@
             margin-bottom: 10px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            width: calc(50% - 10px);
         }
         .match {
             font-size: 1.2em;
@@ -77,17 +83,16 @@
             color: #28a745;
             margin-top: 10px;
         }
-        .filter {
-            margin-bottom: 20px;
-            width: 100%;
+        .stake-input {
+            margin-top: 10px;
         }
-        .filter input {
+        .stake-input input {
             padding: 8px;
             font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        .filter button {
+        .stake-input button {
             padding: 8px 16px;
             font-size: 16px;
             background-color: #007bff;
@@ -96,97 +101,114 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        .filter button:hover {
+        .stake-input button:hover {
             background-color: #0056b3;
+        }
+        .no-opportunities {
+            text-align: center;
+            color: #dc3545;
+            font-weight: bold;
         }
         @media (max-width: 768px) {
             body {
-                flex-direction: column;
-            }
-            .calculator {
-                max-width: 100%;
-                margin-right: 0;
-                margin-bottom: 20px;
+                margin: 10px;
             }
             li {
-                width: 100%;
+                padding: 10px;
+            }
+            .match {
+                font-size: 1.1em;
             }
         }
     </style>
 </head>
 <body>
     <h1>Arbitrage Opportunities</h1>
-    <div class="calculator">
-        <h2>Arbitrage Calculator</h2>
-        <form id="calculator">
-            <label for="odds1">Odds 1:</label>
-            <input type="number" id="odds1" required><br><br>
-            <label for="odds2">Odds 2:</label>
-            <input type="number" id="odds2" required><br><br>
-            <button type="button" onclick="calculateArbitrage()">Calculate</button>
-        </form>
-        <p id="result"></p>
+    <div class="filter-box">
+        <label for="arbitrage-filter">Show opportunities with arbitrage % ≥ </label>
+        <input type="number" id="arbitrage-filter" placeholder="e.g., 10" min="0" step="0.1">
+        <button onclick="applyFilter()">Apply Filter</button>
     </div>
-    <div class="opportunities">
-        <div class="filter">
-            <label for="filter">Filter by Arbitrage % (e.g., 20):</label>
-            <input type="number" id="filter" value="{{ filter_percentage }}">
-            <button onclick="applyFilter()">Apply</button>
-        </div>
-        <ul>
-            {% for opportunity in opportunities %}
-            <li>
-                <div class="match">{{ opportunity.match }}</div>
-                <div class="sport">{{ opportunity.sport }}</div>
-                <div class="event-time">Event Time: {{ opportunity.event_time }}</div>
-                <div class="odds">
-                    <strong>Home:</strong> {{ opportunity.home_site }} - Odds: {{ opportunity.home_odds }} 
-                    <a href="{{ opportunity.home_url }}" target="_blank" rel="noopener noreferrer">Visit Site</a>
-                </div>
-                <div class="odds">
-                    <strong>Away:</strong> {{ opportunity.away_site }} - Odds: {{ opportunity.away_odds }} 
-                    <a href="{{ opportunity.away_url }}" target="_blank" rel="noopener noreferrer">Visit Site</a>
-                </div>
-                <div class="arbitrage-percentage">
-                    Arbitrage Percentage: {{ opportunity.arbitrage_percentage }}%
-                </div>
-                <div class="potential-profit">
-                    Potential Profit (for $100 stake): ${{ opportunity.potential_profit }}
-                </div>
-            </li>
-            {% else %}
-            <li>No arbitrage opportunities found.</li>
-            {% endfor %}
-        </ul>
-    </div>
+    <ul id="opportunities-list">
+        {% for opportunity in opportunities %}
+        <li class="opportunity" data-arbitrage="{{ opportunity.arbitrage_percentage }}">
+            <div class="match">{{ opportunity.match }}</div>
+            <div class="sport">{{ opportunity.sport }}</div>
+            <div class="event-time">Event Time: {{ opportunity.event_time }}</div>
+            <div class="odds">
+                <strong>Home:</strong> {{ opportunity.home_site }} - Odds: {{ opportunity.home_odds }} 
+                <a href="{{ opportunity.home_url }}" target="_blank" rel="noopener noreferrer">Place Bet</a>
+            </div>
+            <div class="odds">
+                <strong>Away:</strong> {{ opportunity.away_site }} - Odds: {{ opportunity.away_odds }} 
+                <a href="{{ opportunity.away_url }}" target="_blank" rel="noopener noreferrer">Place Bet</a>
+            </div>
+            <div class="arbitrage-percentage">
+                Arbitrage Percentage: {{ opportunity.arbitrage_percentage }}%
+            </div>
+            <div class="potential-profit">
+                Potential Profit (for $100 stake): ${{ opportunity.potential_profit }}
+            </div>
+            <div class="stake-input">
+                <label for="stake-{{ loop.index }}">Enter Total Stake ($):</label>
+                <input type="number" id="stake-{{ loop.index }}" placeholder="100">
+                <button onclick="calculateStakes({{ loop.index }}, {{ opportunity.home_odds }}, {{ opportunity.away_odds }})">Calculate Stakes</button>
+                <p id="stake-result-{{ loop.index }}"></p>
+            </div>
+        </li>
+        {% else %}
+        <li class="no-opportunities">No arbitrage opportunities found.</li>
+        {% endfor %}
+    </ul>
 
     <script>
-        // Arbitrage Calculator
-        function calculateArbitrage() {
-            const odds1 = parseFloat(document.getElementById("odds1").value);
-            const odds2 = parseFloat(document.getElementById("odds2").value);
+        // Apply filter based on arbitrage percentage
+        function applyFilter() {
+            const filterValue = parseFloat(document.getElementById("arbitrage-filter").value);
+            const opportunities = document.querySelectorAll(".opportunity");
+            let visibleCount = 0;
 
-            if (isNaN(odds1) || isNaN(odds2) || odds1 <= 0 || odds2 <= 0) {
-                document.getElementById("result").innerText = "Please enter valid odds.";
-                return;
-            }
+            opportunities.forEach(opp => {
+                const arbitrage = parseFloat(opp.getAttribute("data-arbitrage"));
+                if (arbitrage >= filterValue) {
+                    opp.style.display = "block";
+                    visibleCount++;
+                } else {
+                    opp.style.display = "none";
+                }
+            });
 
-            const impliedProb1 = 1 / odds1;
-            const impliedProb2 = 1 / odds2;
-            const totalImpliedProb = impliedProb1 + impliedProb2;
-
-            if (totalImpliedProb >= 1) {
-                document.getElementById("result").innerText = "No arbitrage opportunity.";
+            // Show message if no opportunities match the filter
+            const noOpportunitiesMessage = document.querySelector(".no-opportunities");
+            if (visibleCount === 0) {
+                if (!noOpportunitiesMessage) {
+                    const ul = document.getElementById("opportunities-list");
+                    ul.innerHTML = '<li class="no-opportunities">No opportunities found with an arbitrage percentage of ' + filterValue + '% or higher.</li>';
+                }
             } else {
-                const arbitragePercentage = (1 - totalImpliedProb) * 100;
-                document.getElementById("result").innerText = `Arbitrage Percentage: ${arbitragePercentage.toFixed(2)}%`;
+                if (noOpportunitiesMessage) {
+                    noOpportunitiesMessage.remove();
+                }
             }
         }
 
-        // Filter by Arbitrage Percentage
-        function applyFilter() {
-            const filterValue = document.getElementById("filter").value;
-            window.location.href = `/?filter=${filterValue}`;
+        // Calculate stakes for each opportunity
+        function calculateStakes(index, homeOdds, awayOdds) {
+            const stake = parseFloat(document.getElementById(`stake-${index}`).value);
+            if (isNaN(stake) || stake <= 0) {
+                document.getElementById(`stake-result-${index}`).innerText = "Please enter a valid stake.";
+                return;
+            }
+
+            const impliedProbHome = 1 / homeOdds;
+            const impliedProbAway = 1 / awayOdds;
+            const totalImpliedProb = impliedProbHome + impliedProbAway;
+
+            const stakeHome = (stake * impliedProbHome) / totalImpliedProb;
+            const stakeAway = (stake * impliedProbAway) / totalImpliedProb;
+
+            document.getElementById(`stake-result-${index}`).innerText = 
+                `Stake on Home: $${stakeHome.toFixed(2)} | Stake on Away: $${stakeAway.toFixed(2)}`;
         }
     </script>
 </body>
