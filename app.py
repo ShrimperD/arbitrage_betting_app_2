@@ -15,7 +15,7 @@ BOOKMAKER_URLS = {
     "Bovada": "https://www.bovada.lv",
     "BetRivers": "https://www.betrivers.com",
     "Caesars": "https://www.caesars.com/sportsbook",
-    "BetMGM": "https://sports.ks.betmgm.com",  # Updated to Kansas-specific URL
+    "BetMGM": "https://sports.ks.betmgm.com",  # Corrected to Kansas-specific URL
     "LowVig.ag": "https://www.lowvig.ag",
     "MyBookie.ag": "https://www.mybookie.ag",
     "BetUS": "https://www.betus.com.pa",
@@ -85,6 +85,8 @@ def find_arbitrage_opportunities():
                     total_implied_prob = implied_prob_home + implied_prob_away
 
                     if total_implied_prob < 1:
+                        arbitrage_percentage = (1 - total_implied_prob) * 100
+                        potential_profit = (arbitrage_percentage / 100) * 100  # For $100 stake
                         opportunities.append({
                             "match": match,
                             "sport": sport,
@@ -95,12 +97,15 @@ def find_arbitrage_opportunities():
                             "away_site": away["site"],
                             "away_odds": away["odds"],
                             "away_url": away["url"],
-                            "arbitrage_percentage": round((1 - total_implied_prob) * 100, 2)
+                            "arbitrage_percentage": round(arbitrage_percentage, 2),
+                            "potential_profit": round(potential_profit, 2)
                         })
         except KeyError as e:
             print(f"❌ Missing Key in Event Data: {e}")
             continue
 
+    # Sort opportunities by arbitrage percentage (highest first)
+    opportunities.sort(key=lambda x: x["arbitrage_percentage"], reverse=True)
     return opportunities
 
 # ✅ Web App Route (Displays Data)

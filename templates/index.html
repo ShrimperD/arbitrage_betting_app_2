@@ -83,27 +83,6 @@
             color: #28a745;
             margin-top: 10px;
         }
-        .stake-input {
-            margin-top: 10px;
-        }
-        .stake-input input {
-            padding: 8px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .stake-input button {
-            padding: 8px 16px;
-            font-size: 16px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .stake-input button:hover {
-            background-color: #0056b3;
-        }
         .no-opportunities {
             text-align: center;
             color: #dc3545;
@@ -147,13 +126,7 @@
                 Arbitrage Percentage: {{ opportunity.arbitrage_percentage }}%
             </div>
             <div class="potential-profit">
-                Potential Profit (for $100 stake): ${{ (opportunity.arbitrage_percentage / 100 * 100)|round(2) }}
-            </div>
-            <div class="stake-input">
-                <label for="stake-{{ loop.index }}">Enter Total Stake ($):</label>
-                <input type="number" id="stake-{{ loop.index }}" placeholder="100">
-                <button onclick="calculateStakes({{ loop.index }}, {{ opportunity.home_odds }}, {{ opportunity.away_odds }})">Calculate Stakes</button>
-                <p id="stake-result-{{ loop.index }}"></p>
+                Potential Profit (for $100 stake): ${{ opportunity.potential_profit }}
             </div>
         </li>
         {% else %}
@@ -190,25 +163,6 @@
                     noOpportunitiesMessage.remove();
                 }
             }
-        }
-
-        // Calculate stakes for each opportunity
-        function calculateStakes(index, homeOdds, awayOdds) {
-            const stake = parseFloat(document.getElementById(`stake-${index}`).value);
-            if (isNaN(stake) || stake <= 0) {
-                document.getElementById(`stake-result-${index}`).innerText = "Please enter a valid stake.";
-                return;
-            }
-
-            const impliedProbHome = 1 / homeOdds;
-            const impliedProbAway = 1 / awayOdds;
-            const totalImpliedProb = impliedProbHome + impliedProbAway;
-
-            const stakeHome = (stake * impliedProbHome) / totalImpliedProb;
-            const stakeAway = (stake * impliedProbAway) / totalImpliedProb;
-
-            document.getElementById(`stake-result-${index}`).innerText = 
-                `Stake on Home: $${stakeHome.toFixed(2)} | Stake on Away: $${stakeAway.toFixed(2)}`;
         }
     </script>
 </body>
