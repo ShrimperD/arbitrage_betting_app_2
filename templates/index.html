@@ -22,13 +22,13 @@
 <body>
     <h1>Arbitrage Opportunities</h1>
     <div class="filter-box">
-        <label for="arbitrage-filter">Show opportunities with arbitrage % ≥ </label>
-        <input type="number" id="arbitrage-filter" placeholder="e.g., 20" min="0" step="0.1">
+        <label for="profit-filter">Show opportunities with profit % ≥ </label>
+        <input type="number" id="profit-filter" placeholder="e.g., 20" min="0" step="0.1">
         <button onclick="applyFilter()">Apply Filter</button>
     </div>
     <ul id="opportunities-list">
         {% for opportunity in opportunities %}
-        <li class="opportunity" data-arbitrage="{{ opportunity.arbitrage_percentage }}">
+        <li class="opportunity" data-profit="{{ opportunity.profit_percentage }}">
             <div class="match">{{ opportunity.match }}</div>
             <div class="sport">{{ opportunity.sport }}</div>
             <div class="event-time">Event Time: {{ opportunity.event_time }}</div>
@@ -40,8 +40,8 @@
                 <strong>Away:</strong> {{ opportunity.away_site }} - Odds: {{ opportunity.away_odds }} 
                 <a href="{{ opportunity.away_url }}" target="_blank" rel="noopener noreferrer">Place Bet</a>
             </div>
-            <div class="arbitrage-percentage">
-                Arbitrage Percentage: {{ opportunity.arbitrage_percentage }}%
+            <div class="profit-percentage">
+                Profit Percentage: {{ opportunity.profit_percentage }}%
             </div>
             <div class="potential-profit">
                 Potential Profit (for $100 stake): ${{ opportunity.potential_profit }}
@@ -68,7 +68,7 @@
             data.forEach(opp => {
                 const li = document.createElement("li");
                 li.className = "opportunity";
-                li.setAttribute("data-arbitrage", opp.arbitrage_percentage);
+                li.setAttribute("data-profit", opp.profit_percentage);  // Use profit percentage for filtering
                 li.innerHTML = `
                     <div class="match">${opp.match}</div>
                     <div class="sport">${opp.sport}</div>
@@ -81,8 +81,8 @@
                         <strong>Away:</strong> ${opp.away_site} - Odds: ${opp.away_odds} 
                         <a href="${opp.away_url}" target="_blank" rel="noopener noreferrer">Place Bet</a>
                     </div>
-                    <div class="arbitrage-percentage">
-                        Arbitrage Percentage: ${opp.arbitrage_percentage}%
+                    <div class="profit-percentage">
+                        Profit Percentage: ${opp.profit_percentage}%
                     </div>
                     <div class="potential-profit">
                         Potential Profit (for $100 stake): $${opp.potential_profit}
@@ -95,15 +95,15 @@
             applyFilter();
         });
 
-        // Apply filter based on arbitrage percentage
+        // Apply filter based on profit percentage
         function applyFilter() {
-            const filterValue = parseFloat(document.getElementById("arbitrage-filter").value) || 0;
+            const filterValue = parseFloat(document.getElementById("profit-filter").value) || 0;
             const opportunities = document.querySelectorAll(".opportunity");
             let visibleCount = 0;
 
             opportunities.forEach(opp => {
-                const arbitrage = parseFloat(opp.getAttribute("data-arbitrage"));
-                if (arbitrage >= filterValue) {
+                const profit = parseFloat(opp.getAttribute("data-profit"));
+                if (profit >= filterValue) {
                     opp.style.display = "block";
                     visibleCount++;
                 } else {
@@ -116,7 +116,7 @@
             if (visibleCount === 0) {
                 if (!noOpportunitiesMessage) {
                     const ul = document.getElementById("opportunities-list");
-                    ul.innerHTML = '<li class="no-opportunities">No opportunities found with an arbitrage percentage of ' + filterValue + '% or higher.</li>';
+                    ul.innerHTML = '<li class="no-opportunities">No opportunities found with a profit percentage of ' + filterValue + '% or higher.</li>';
                 }
             } else {
                 if (noOpportunitiesMessage) {
