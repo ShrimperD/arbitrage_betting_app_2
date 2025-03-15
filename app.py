@@ -1,16 +1,16 @@
+import os
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
 import requests
 from datetime import datetime
 import pytz
-import os
 import threading
 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
-# ✅ API Key (Use Render Environment Variables)
-API_KEY = os.getenv("API_KEY")
+# ✅ Hardcoded API Key (Replace with your actual API key)
+API_KEY = "f1e5ca6d70e837026e976e7f5a94f058"  # Add your API key here
 API_URL = f"https://api.the-odds-api.com/v4/sports/upcoming/odds?apiKey={API_KEY}&regions=us&oddsFormat=american"
 
 # ✅ Mapping of Bookmaker Names to URLs (Updated and Verified)
