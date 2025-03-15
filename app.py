@@ -1,13 +1,16 @@
 from flask import Flask, render_template, request
+from flask_socketio import SocketIO, emit
 import requests
 from datetime import datetime
 import pytz
 import os
+import threading
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 # ✅ API Key (Use Render Environment Variables)
-API_KEY = os.getenv("API_KEY")  # Ensure this matches the environment variable name in Render
+API_KEY = os.getenv("API_KEY")
 API_URL = f"https://api.the-odds-api.com/v4/sports/upcoming/odds?apiKey={API_KEY}&regions=us&oddsFormat=american"
 
 # ✅ Mapping of Bookmaker Names to URLs (Updated and Verified)
@@ -15,7 +18,7 @@ BOOKMAKER_URLS = {
     "Bovada": "https://www.bovada.lv",
     "BetRivers": "https://www.betrivers.com",
     "Caesars": "https://www.caesars.com/sportsbook",
-    "BetMGM": "https://sports.ks.betmgm.com",  # Corrected to Kansas-specific URL
+    "BetMGM": "https://sports.ks.betmgm.com",
     "LowVig.ag": "https://www.lowvig.ag",
     "MyBookie.ag": "https://www.mybookie.ag",
     "BetUS": "https://www.betus.com.pa",
@@ -34,13 +37,13 @@ def convert_to_central_time(utc_time):
         return ct_dt.strftime("%Y-%m-%d %I:%M %p CT")
     except Exception as e:
         print(f"❌ Error Converting Time: {e}")
-        return utc_time  # Return original time if conversion fails
+        return utc_time
 
 # ✅ Function to Fetch Odds from API
 def get_odds():
     try:
-        response = requests.get(API_URL, timeout=10)  # Add timeout to prevent hanging
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        response = requests.get(API_URL, timeout=10)
+        response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         print(f"❌ API Request Failed: {e}")
@@ -62,22 +65,21 @@ def find_arbitrage_opportunities():
 
             for bookmaker in event.get("bookmakers", []):
                 for market in bookmaker.get("markets", []):
-                    if market["key"] == "h2h":  # Only consider head-to-head markets
+                    if market["key"] == "h2h":
                         for outcome in market.get("outcomes", []):
                             if outcome["name"] == event["home_team"]:
                                 home_odds.append({
                                     "site": bookmaker["title"],
                                     "odds": outcome["price"],
-                                    "url": f"{BOOKMAKER_URLS.get(bookmaker['title'], '#')}/event/{event['id']}"  # Direct link to event
+                                    "url": f"{BOOKMAKER_URLS.get(bookmaker['title'], '#')}/event/{event['id']}"
                                 })
                             elif outcome["name"] == event["away_team"]:
                                 away_odds.append({
                                     "site": bookmaker["title"],
                                     "odds": outcome["price"],
-                                    "url": f"{BOOKMAKER_URLS.get(bookmaker['title'], '#')}/event/{event['id']}"  # Direct link to event
+                                    "url": f"{BOOKMAKER_URLS.get(bookmaker['title'], '#')}/event/{event['id']}"
                                 })
 
-            # Calculate implied probabilities and check for arbitrage
             for home in home_odds:
                 for away in away_odds:
                     implied_prob_home = 1 / home["odds"] if home["odds"] > 0 else 0
@@ -104,7 +106,6 @@ def find_arbitrage_opportunities():
             print(f"❌ Missing Key in Event Data: {e}")
             continue
 
-    # Sort opportunities by arbitrage percentage (highest first)
     opportunities.sort(key=lambda x: x["arbitrage_percentage"], reverse=True)
     return opportunities
 
@@ -120,6 +121,21 @@ def index():
         print(f"❌ Error Rendering Template: {e}")
         return "An error occurred while processing your request.", 500
 
+# ✅ SocketIO Event for Real-Time Updates
+@socketio.on('connect')
+def handle_connect():
+    emit('update_opportunities', find_arbitrage_opportunities())
+
+# ✅ Background Thread for Periodic Updates
+def background_thread():
+    while True:
+        socketio.sleep(30)  # Update every 30 seconds
+        opportunities = find_arbitrage_opportunities()
+        socketio.emit('update_opportunities', opportunities)
+
+# ✅ Start Background Thread
+threading.Thread(target=background_thread, daemon=True).start()
+
 # ✅ Flask App Runner for Render Deployment
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)  # Disable debug in production
+    socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)

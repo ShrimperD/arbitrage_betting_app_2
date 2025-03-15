@@ -4,101 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arbitrage Opportunities</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 0;
-            background-color: #f9f9f9;
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        .filter-box {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .filter-box input {
-            padding: 8px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .filter-box button {
-            padding: 8px 16px;
-            font-size: 16px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .filter-box button:hover {
-            background-color: #0056b3;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li {
-            padding: 15px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .match {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #007bff;
-        }
-        .sport {
-            font-style: italic;
-            color: #555;
-        }
-        .event-time {
-            color: #28a745;
-            margin: 5px 0;
-        }
-        .odds {
-            margin-top: 10px;
-        }
-        .odds a {
-            color: #dc3545;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .odds a:hover {
-            text-decoration: underline;
-        }
-        .arbitrage-percentage {
-            font-weight: bold;
-            color: #ff5722;
-            margin-top: 10px;
-        }
-        .potential-profit {
-            font-weight: bold;
-            color: #28a745;
-            margin-top: 10px;
-        }
-        .no-opportunities {
-            text-align: center;
-            color: #dc3545;
-            font-weight: bold;
-        }
-        @media (max-width: 768px) {
-            body {
-                margin: 10px;
-            }
-            li {
-                padding: 10px;
-            }
-            .match {
-                font-size: 1.1em;
-            }
-        }
+        /* Add your existing CSS here */
     </style>
 </head>
 <body>
@@ -135,6 +43,45 @@
     </ul>
 
     <script>
+        const socket = io();
+
+        // Real-Time Updates
+        socket.on('update_opportunities', function(data) {
+            const opportunitiesList = document.getElementById("opportunities-list");
+            opportunitiesList.innerHTML = "";
+
+            if (data.length === 0) {
+                opportunitiesList.innerHTML = '<li class="no-opportunities">No arbitrage opportunities found.</li>';
+                return;
+            }
+
+            data.forEach(opp => {
+                const li = document.createElement("li");
+                li.className = "opportunity";
+                li.setAttribute("data-arbitrage", opp.arbitrage_percentage);
+                li.innerHTML = `
+                    <div class="match">${opp.match}</div>
+                    <div class="sport">${opp.sport}</div>
+                    <div class="event-time">Event Time: ${opp.event_time}</div>
+                    <div class="odds">
+                        <strong>Home:</strong> ${opp.home_site} - Odds: ${opp.home_odds} 
+                        <a href="${opp.home_url}" target="_blank" rel="noopener noreferrer">Place Bet</a>
+                    </div>
+                    <div class="odds">
+                        <strong>Away:</strong> ${opp.away_site} - Odds: ${opp.away_odds} 
+                        <a href="${opp.away_url}" target="_blank" rel="noopener noreferrer">Place Bet</a>
+                    </div>
+                    <div class="arbitrage-percentage">
+                        Arbitrage Percentage: ${opp.arbitrage_percentage}%
+                    </div>
+                    <div class="potential-profit">
+                        Potential Profit (for $100 stake): $${opp.potential_profit}
+                    </div>
+                `;
+                opportunitiesList.appendChild(li);
+            });
+        });
+
         // Apply filter based on arbitrage percentage
         function applyFilter() {
             const filterValue = parseFloat(document.getElementById("arbitrage-filter").value);
