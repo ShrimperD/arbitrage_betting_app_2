@@ -9,7 +9,7 @@ import threading
 app = Flask(__name__)
 socketio = SocketIO(app)
 
-# ✅ Hardcoded API Key (Replace with your actual API key)
+# ✅ API Key (Use Render Environment Variables)
 API_KEY = "f1e5ca6d70e837026e976e7f5a94f058"  # Add your API key here
 API_URL = f"https://api.the-odds-api.com/v4/sports/upcoming/odds?apiKey={API_KEY}&regions=us&oddsFormat=american"
 
@@ -44,6 +44,7 @@ def get_odds():
     try:
         response = requests.get(API_URL, timeout=10)
         response.raise_for_status()
+        print("API Response:", response.json())  # Debug: Print the API response
         return response.json()
     except requests.exceptions.RequestException as e:
         print(f"❌ API Request Failed: {e}")
@@ -82,13 +83,22 @@ def find_arbitrage_opportunities():
 
             for home in home_odds:
                 for away in away_odds:
-                    implied_prob_home = 1 / home["odds"] if home["odds"] > 0 else 0
-                    implied_prob_away = 1 / away["odds"] if away["odds"] > 0 else 0
+                    # Convert American odds to implied probabilities
+                    def american_to_implied_probability(odds):
+                        if odds > 0:
+                            return 100 / (odds + 100)
+                        else:
+                            return abs(odds) / (abs(odds) + 100)
+
+                    implied_prob_home = american_to_implied_probability(home["odds"])
+                    implied_prob_away = american_to_implied_probability(away["odds"])
                     total_implied_prob = implied_prob_home + implied_prob_away
 
                     if total_implied_prob < 1:
                         arbitrage_percentage = (1 - total_implied_prob) * 100
                         potential_profit = (arbitrage_percentage / 100) * 100  # For $100 stake
+                        profit_percentage = (potential_profit / 100) * 100  # Profit percentage
+
                         opportunities.append({
                             "match": match,
                             "sport": sport,
@@ -99,14 +109,17 @@ def find_arbitrage_opportunities():
                             "away_site": away["site"],
                             "away_odds": away["odds"],
                             "away_url": away["url"],
-                            "arbitrage_percentage": round(arbitrage_percentage, 2),
+                            "profit_percentage": round(profit_percentage, 2),  # Add profit percentage
                             "potential_profit": round(potential_profit, 2)
                         })
+
+                        # Debug: Print arbitrage opportunities
+                        print(f"Arbitrage Opportunity: {match} | Profit %: {profit_percentage}% | Potential Profit: ${potential_profit}")
         except KeyError as e:
             print(f"❌ Missing Key in Event Data: {e}")
             continue
 
-    opportunities.sort(key=lambda x: x["arbitrage_percentage"], reverse=True)
+    opportunities.sort(key=lambda x: x["profit_percentage"], reverse=True)
     return opportunities
 
 # ✅ Web App Route (Displays Data)
@@ -115,7 +128,11 @@ def index():
     try:
         data = find_arbitrage_opportunities()
         filter_percentage = request.args.get("filter", default=0, type=float)
-        filtered_data = [opp for opp in data if opp["arbitrage_percentage"] >= filter_percentage]
+        filtered_data = [opp for opp in data if opp["profit_percentage"] >= filter_percentage]
+
+        # Debug: Print filtered data
+        print(f"Filtered Data (Profit % ≥ {filter_percentage}%): {filtered_data}")
+
         return render_template("index.html", opportunities=filtered_data, filter_percentage=filter_percentage)
     except Exception as e:
         print(f"❌ Error Rendering Template: {e}")
